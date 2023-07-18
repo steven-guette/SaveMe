@@ -1,0 +1,64 @@
+#!/bin/bash
+
+rootpath=$(dirname "$(readlink -f "$0")")
+repository_path="${1// /}"
+archive_name="$2"
+
+if borg info "$repository_path" &> /dev/null; then
+    # Tentative d'installation de la dépendance gawk, en cas d'échec le script s'arrête.
+    if ! command -v gawk; then
+        apt-get -y install gawk
+
+        if ! command -v gawk; then
+            echo -e "\033[0;31mImpossible d'installer le paquet \033[1mborgbackup\033[0m\033[0;31m, veuillez essayer une installation manuelle.\033[0m"
+            exit 1
+        fi
+    fi
+
+    if borg list "$repository_path" &> /dev/null; then
+        # Récupération du nom d'une archive valide si ce n'est pas déjà le cas.
+        while ! borg list "$repository_path" | grep "$archive_name"; do
+            if [ -z "$archive_name" ]; then
+                echo -e "\nVous n'avez pas indiqué d'archive spécifique à extraire."
+            else
+                echo -e "\n\033[0;31mL'archive \033[1m$archive_name\033[0m \033[0;31mn'est pas ou plus disponible.\033[0m"
+            fi
+
+            read -rp "Voulez-vous utiliser l'archive la plus récente (oui/non) ? " use_last_archive
+
+            if [ "${use_last_archive,,}" = 'oui' ]; then
+                archive_name=$(borg list --last 1 "$repository_path" | awk '{print $1}')
+            else
+                echo -e "\nArchives disponibles pour le repository \033[1m$repository_path\033[0m :"
+                borg list "$repository_path"
+
+                echo -e "\nVeuillez renseigner le nom d'une archive valide pour le repository $repository_path :"
+                read -r archive_name
+            fi
+        done
+
+        cd / || exit 1
+        echo "Extraction des fichiers de l'archive en cours..."
+
+        # Extraction des données avec une barre de progression.
+        if borg extract --progress "$repository_path::$archive_name"; then
+            echo -e "\033[0;32mLa restauration a été effectuée avec succès.\033[0m\n"
+
+            # En cas de succès, réinstallation des paquets.
+            if [ -f "$rootpath/packages/$(basename "$repository_path").list" ]; then
+                dpkg --clear-selections
+                dpkg --set-selections < "$rootpath/packages/$(basename "$repository_path").list"
+                apt-get dselect-upgrade
+                rm /var/lib/dpkg/lock-frontend
+
+                echo -e "\033[0;32mTous les paquets ont été réinstallés.\033[0m"
+            fi
+        else
+            echo -e "\033[0;31mUne erreur s'est produite durant la restauration.\033[0m"
+        fi
+    else
+        echo -e "\033[0;31mLe repository \033[1m$repository_path\033[0m \033[0;31mne contient aucune archive.\033[0m"
+    fi
+else
+    echo -e echo -e "\033[0;31mLe repository \033[1m$repository_path\033[0m \033[0;31mn'existe pas.\033[0m"
+fi
