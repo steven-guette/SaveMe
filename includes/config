@@ -1,0 +1,50 @@
+. /root/SaveMe/includes/functions
+
+# Initialisation des variables contenant les chemins vers les clés de sécurité et les passphrase.
+key_path="$rootpath/resources/keys"
+key_copy_path="/root/.SaveMe-SafeGuard/keys"
+pass_path="$rootpath/resources/pass"
+pass_copy_path="/root/.SaveMe-SafeGuard/pass"
+
+# Création du répertoire SafeGuard et de ses sous-répertoires si ils n'existent pas.
+if [ ! -d "$key_copy_path" ]; then
+    mkdir -p "$key_copy_path"
+
+    if [ ! -d "$pass_copy_path" ]; then
+        mkdir "$pass_copy_path"
+    fi
+
+    chmod 700 /root/.SaveMe-SafeGuard "$key_copy_path" "$pass_copy_path"
+fi
+
+# Vérification des dépendances et réplication des données sensibles.
+check_dependencies
+safeguard_copy_check "$key_copy_path" "$key_path"
+safeguard_copy_check "$pass_copy_path" "$pass_path"
+
+#====================================================================================
+# Teste l'existence du fichier dans /repositories d'après la saisie de l'utilisateur.
+# Si le fichier existe, vérifie le type d'encryptage du dépôt et au besoin initialise les variables d'environnement nécessaires.
+# Sinon, envois un message d'erreur et arrête l'exécution du script.
+#===================================================================
+repository_file_path="$rootpath/repositories/$repository_name"
+
+if [ -f "$repository_file_path" ] && [ -O "$repository_file_path" ]; then
+    . "$repository_file_path"
+
+    key_path+="/$repository_name.key"
+    pass_path+="/$repository_name.pass"
+
+    if [ -f "$key_path" ] && [ -f "$pass_path" ]; then
+        BORG_PASSPHRASE=$(cat "$pass_path")
+        BORG_KEY_FILE="$key_path"
+        export BORG_PASSPHRASE
+        export BORG_KEY_FILE
+    elif [ "$encryption" = 'true' ]; then
+        echo -e "\nImpossible de récupérer la clé de sécurité et/ou le mot de passe du dépôt $repository_name." \
+                "\nSi il s'agit d'un dépôt non crypté, veuillez modifier le fichier de configuration en conséquence."
+    fi
+else
+    echo -e "\n\033[0;31mLe fichier de configuration $repository_name n'a pas été trouvé dans repositories.\033[0m"
+    exit 1
+fi

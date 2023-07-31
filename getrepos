@@ -1,0 +1,12 @@
+#!/bin/bash
+
+mapfile -t repository_list < <(ls "/root/SaveMe/repositories")
+
+if [ "${#repository_list}" -gt 0 ]; then
+    echo -e "\n\033[1mListe des fichiers de configuration :\033[0m"
+    for repos in "${repository_list[@]}"; do
+        echo -e "\033[0;35m- \033[0;36m$repos\033[0m"
+    done
+else
+    echo -e "\n\033[0;31mLe répertoire repositories ne contient aucun fichier.\033[0m"
+fi

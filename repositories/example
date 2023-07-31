@@ -1,0 +1,66 @@
+#!/bin/bash
+
+#========================================================================================================
+# ATTENTION : Pour des raisons de sécurité et de compatibilité, il est impératif que le répertoire SaveMe
+# soit situé dans /root et que les scripts qu'il contient soient utilisés en tant que root.
+#==========================================================================================
+
+# true  = Le backup sera effectué.
+# false = Le backup ne sera pas effectué.
+enabled=true
+
+# true  = Il s'agit d'un dépôt distant via protocole SSH.
+# false = Il s'agit d'un dépôt local.
+#
+# Si il s'agit d'un dépôt distant, vous devrez créer le chemin vous même sur la machine distante.
+# Si par exemple la valeur de 'repository_path' était root@mon-ip:/backup/example, vous devriez créer le répertoire /backup.
+ssh_repository=false
+
+# Chemin vers le répertoire dans lequel seront stockés les archives.
+repository_path=/backup/example
+
+
+# Reçevoir un mail avec les détails de la sauvegarde et du backup.
+# Pour que cela fonctionne, il faut bien évidemment installer et configurer un programme smtp sur le système.
+mail_report=false
+mailto=mon-email@example.com
+
+# Le suffixe de l'archive à créer, suivit de la date courante.
+# Format de la date par défaut : jj-mm-aaaa~hh:mm
+# Pour un nom d'archive contenant uniquement la date, mettre `archive_prefix` en commentaire.
+current_date=$(date "+%d-%m-%Y~%H:%M")
+archive_prefix=example
+
+# true  = Utilisation de l'option keyfile-blake2 ( Recommandé pour les transferts distants ).
+# false = Aucun encryptage.
+#
+# Si le dépôt a été crée avec encryption sur false, vous ne pourrez pas le modifier à moins de passer la valeur
+# de la variable encryption sur true puis d'exécuter le script upgrade.
+# Il est toutefois important de noter que cela peux entrainer des pertes de données, alors le mieux reste
+# de prendre le temps de faire le bon choix selon vos besoins dès le départ.
+encryption=false
+
+# Le niveau de compression souhaité : none | zlib | lz4 | lzma.
+compression=zlib
+
+# Les fichiers et répertoires à sauvegarder.
+# Il est important d'indiquer des chemins absolus.
+to_save=(/home /etc /root)
+
+# Détermine le temps de conservation des archives ou la quantité d'archives à conserver.
+# keep_value : La quantité ou la durée associée à keep_type.
+# keep_type  : --keep-last | --keep-daily | --keep-weekly | etc...
+# Pour voir tous les choix disponibles, se renseigner sur "borg prune".
+keep_type=--keep-last
+keep_value=5
+
+#==================================================================================================================
+# Pour faire d'autres backup il suffit de faire une copie de ce fichier avec un nouveau nom dans le même répertoire
+# et de modifier les valeurs des variables selon les besoins du nouveau backup.
+#
+# Chaque fichier est autonome et correspond ainsi à l'un des backup nécessaires.
+# Vous pouvez l'exécuter en directe ou bien l'automatiser selon vos besoins.
+#
+# Pour automatiser chaque backup, il est possible d'ajouter une ligne dans crontab.
+# Exemple pour ce fichier : 0 12 * * * /chemin/vers/SaveMe/save example > /dev/null
+#==================================================================================

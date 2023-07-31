@@ -1,0 +1,56 @@
+#!/bin/bash
+
+rootpath=/root/SaveMe
+repository_name="$1"
+
+. "$rootpath/includes/config"
+
+if borg info "$repository_path" &> /dev/null; then
+    if [ -n "$2" ]; then
+        if borg list "$repository_path" | grep "$2" > /dev/null; then
+            if borg delete --force "$repository_path::$2" 2> /dev/null; then
+                echo -e "\033[0;32mL'archive $2 a été supprimée.\033[0m"
+            else
+                echo -e "\033[0;31mImpossible de supprimer l'archive $2.\033[0m"
+            fi
+        else
+            echo -e "\n\033[0;31mL'archive $2 n'existe pas.\033[0m"
+            read -rp "Voulez-vous consulter les archives disponibles pour le dépôt $repository_name (oui/non) ? " view_list
+
+            if [ "${view_list,,}" = 'oui' ]; then
+                echo -e "\n\033[0;36m$(borg list "$repository_path")\033[0m"
+            fi
+        fi
+    else
+        echo -e "\nVous n'avez pas indiqué l'archive à supprimer."
+        read -rp "Souhaitez-vous supprimer le dépôt dans son intégralité (oui/non) ? " confirmation
+
+        if [ "${confirmation,,}" = 'oui' ]; then
+            if borg delete --force "$repository_path" 2> /dev/null; then
+                rm -f "$rootpath/logs/errors-$repository_name.log"
+                rm -f "$rootpath/logs/backup-$repository_name.log"
+
+                if [ "$encryption" = 'true' ]; then
+                    rm -f "$rootpath/resources/keys/$repository_name.key"
+                    rm -f "$rootpath/resources/pass/$repository_name.pass"
+                    rm -f "$rootpath/resources/packages/$repository_name.list"
+                    safeguard_clear "$repository_name"
+                fi
+
+                read -rp "Souhaitez-vous également supprimer le fichier de configuration du dépôt (oui/non) ? " remove_repository_file
+
+                if [ "$remove_repository_file" = 'oui' ]; then
+                    rm "$rootpath/repositories/$repository_name"
+                fi
+
+                echo -e "\033[0;32mLe dépôt $repository_name a été supprimé.\033[0m"
+            else
+                echo -e "\033[0;31mImpossible de supprimer le dépôt $repository_name.\033[0m"
+            fi
+        else
+            echo -e "Suppression du dépôt $repository_name annulée."
+        fi
+    fi
+else
+    echo -e "\n\033[0;31mLe dépôt $repository_name n'existe pas.\033[0m"
+fi

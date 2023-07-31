@@ -1,0 +1,162 @@
+#!/bin/bash
+
+set_logs() {
+    declare -n logs_list=$1
+    local logs_path="$2"
+
+    if [ "${#logs_list[@]}" -gt 0 ] && [ -d "$(dirname "$logs_path")" ]; then
+        # Génération de l'entête et du pied de message.
+        logs_header="---------------------------- $(date '+%d/%m/%Y - %H:%M') ----------------------------"
+        logs_footer_length=${#logs_header}
+
+        while [ "$logs_footer_length" -gt 0 ]; do
+            logs_footer+="-"
+            ((logs_footer_length--))
+        done
+
+        echo -e "\n$logs_header\n" >> "$logs_path"
+        for log in "${logs_list[@]}"; do
+            echo -e "$log" >> "$logs_path"
+        done
+        echo -e "\n$logs_footer\n" >> "$logs_path"
+    fi
+}
+
+rootpath=/root/SaveMe
+repository_name="$1"
+
+. "$rootpath/includes/config"
+
+# Création du chemin vers le dépôt si il ne s'agit pas d'un dépôt distant.
+if [ "$ssh_repository" = 'false' ]; then
+    mkdir -p "$(dirname "$repository_path")"
+fi
+
+if [ "$enabled" != 'true' ]; then
+    logs+=("Le dépôt $repository_name est désactivé.");
+elif [ "$(id -u)" -ne 0 ]; then
+    logs+=("Pour des raisons de sécurité, SaveMe doit être utilisé en tant que root.");
+elif [ ! -d "$(dirname "$repository_path")" ]; then
+    logs+=("Le chemin d'accès vers le répertoire ( $(dirname "$repository_path") ) n'existe pas.")
+fi
+
+if [ "${#logs}" -gt 0 ]; then
+    set_logs logs "$rootpath/logs/errors-$repository_name.log"
+    exit 1;
+fi
+
+if [ -n "$archive_prefix" ] && [ -n "$current_date" ]; then
+    archive_name="$archive_prefix-$current_date"
+elif [ -n "$current_date" ]; then
+    archive_name="$current_date"
+fi
+
+if [ -n "$repository_path" ] && [ -n "$archive_name" ] && [ -n "$encryption" ] && [ -n "$compression" ] \
+&& [ "${#to_save}" -gt 0 ] && [ -n "$keep_type" ] && [ -n "$keep_value" ] && [ "$keep_value" -eq "$keep_value" ]; then
+    # Gestion du fichier qui va contenir la liste des paquets à réinstaller.
+    packages_path="$rootpath/resources/packages/$repository_name.list"
+
+    if [ ! -f "$packages_path" ]; then
+        touch "$packages_path"
+        chmod 600 "$packages_path"
+    fi
+
+    dpkg --get-selections > "$packages_path"
+
+    # Initialisation du répertoire d'archivage si c'est la première sauvegarde.
+    if ! borg info "$repository_path" &> /dev/null; then
+        if [ "$encryption" = 'true' ]; then
+            create_new_passphrase
+            BORG_PASSPHRASE=$(cat "$pass_path")
+            export BORG_PASSPHRASE
+
+            borg init -e keyfile-blake2 "$repository_path" &> /dev/null
+            borg key export "$repository_path" "$key_path"
+            chmod 400 "$key_path"
+
+            safeguard_save_key "$(basename "$key_path")"
+        else
+            borg init -e none "$repository_path"
+        fi
+    fi
+
+    # Création d'une nouvelle archive.
+    archive_created=true
+    borg create --progress -C "$compression" "$repository_path::$archive_name" "${to_save[@]}"
+
+    # Vérification de l'intégrité de l'archive.
+    if ! borg check "$repository_path::$archive_name"; then
+        logs+=("Les données de l'archive $archive_name sont compromises, nouvelle tentative de génération en cours.")
+
+        # Seconde tentative si la première échoue.
+        if borg delete "$repository_path::$archive_name"; then
+            borg create --progress -C "$compression" "$repository_path::$archive_name" "${to_save[@]}"
+
+            if ! borg check "$repository_path::$archive_name"; then
+                logs+=("Certaines données de l'archive $archive_name sont corrompues.")
+                archive_created=false
+            else
+                logs+=("L'archive $archive_name a été régénérée avec succès.")
+            fi
+        else
+            logs+=("Une erreur s'est produite lors de la suppression de l'archive $archive_name.")
+        fi
+    else
+        logs+=("L'archive $archive_name été générée avec succès.")
+    fi
+
+    # Envois d'un mail contenant les détails de la sauvegarde et du dépôt.
+    if [ "$mail_report" = 'true' ]; then
+        if [ -n "$mailto" ]; then
+            . "$rootpath/includes/mail-report"
+        else
+            logs+=("Aucune adresse mail n'est définie dans le fichier de configuration du dépôt $repository_name.")
+        fi
+    fi
+
+    # Purge des anciennes archives selon la quantité ou le temps de conservation.
+    borg prune "$keep_type" "$keep_value" "$repository_path"
+
+    # Ajout de l'espace disque utilisé dans les logs.
+    storage_size=$(borg info "$repository_path" | grep All)
+
+    logs+=( "\n" \
+        "Taille d'origine: $(echo "$storage_size" | awk '{print $3$4}')" \
+        "Après compression: $(echo "$storage_size" | awk '{print $5$6}')" \
+        "Après déduplication: $(echo "$storage_size" | awk '{print $7$8}')" \
+    )
+
+    # Purge du fichier de log si celui-ci devient trop volumineux.
+    logs_file="$rootpath/logs/backup-$repository_name.log"
+
+    if [ -f "$logs_file" ] && [ "$(wc -l < "$logs_file")" -ge 200 ]; then
+        echo > "$logs_file"
+    fi
+
+    set_logs logs "$logs_file"
+else
+    logs+=("Le fichier de configuration du dépôt $repository_name comporte une ou plusieurs erreurs :")
+
+    if [ -z "$repository_path" ]; then
+        logs+=("- Le chemin vers le dépôt n'est pas renseigné.")
+    fi
+    if [ -z "$archive_name" ]; then
+        logs+=("- Le nom de l'archive à générer n'est pas renseigné, vérifiez archive_suffix et current_date.")
+    fi
+    if [ -z "$compression" ]; then
+        logs+=("- Le format de la compression à appliquer aux archives n'est pas renseigné.")
+    fi
+    if [ -z "$keep_type" ]; then
+        logs+=("- La méthode de purge des archives n'est pas renseignée.")
+    fi
+    if [ -z "$keep_value" ]; then
+        logs+=("- La quantité ou la durée des archives n'est pas renseignée.")
+    elif [ "$keep_value" -ne "$keep_value" ]; then
+        logs+=("- La valeur de keep_value doit correspondre à un nombre entier.")
+    fi
+    if [ "${#to_save}" -eq 0 ]; then
+        logs+=("- Aucun répertoire ou fichier n'a été sélectionné pour être sauvegardé.")
+    fi
+
+    set_logs logs "$rootpath/logs/errors-$repository_name.log"
+fi

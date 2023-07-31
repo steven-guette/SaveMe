@@ -1,0 +1,100 @@
+#!/bin/bash
+
+set -e
+
+rootpath=/root/SaveMe
+repository_name="$1"
+
+. "$rootpath/includes/config"
+
+tmp_cleanup() {
+    rm -Rf "$rootpath/tmp"
+}
+
+trap tmp_cleanup EXIT
+
+is_encrypted=$(borg info "$repository_path" | grep -i encrypted | awk '{print $2}')
+
+if [ -z "$is_encrypted" ]; then
+    echo -e "\033[0;31mLe dépôt $repository_name n'existe pas.\033[0m"
+elif [ "${is_encrypted,,}" = 'no' ]; then
+    echo -e "\033[0;31mLe dépôt $repository_name est déjà un dépôt non crypté.\033[0m"
+else
+    # Demande de confirmation.
+    echo -e "\n\033[0;31mATTENTION :\033[0m Vous êtes sur le point de faire évoluer un dépôt crypté en un dépôt non crypté." \
+            "\nEn outre, seules les cinq archives les plus récentes seront récupérées.\n"
+
+    read -rp "Sachant cela, êtes vous sur de vouloir continuer (oui/non) ? " downgrade_continue
+
+    if [ "${downgrade_continue,,}" = 'oui' ]; then
+        mapfile -t archives_list < <(borg list --last 5 "$repository_path" | awk '{print $1}')
+        mkdir "$rootpath/tmp"
+
+        # Sauvegarde des archives du dépôt dans des répertoires temporaires.
+        archives_is_saves=true
+
+        if [ "${#archives_list}" -gt 0 ]; then
+            echo -e "\n\033[0;36mSauvegarde des archives en cours...\033[0m"
+            for archive_name in "${archives_list[@]}"; do
+                mkdir "$rootpath/tmp/$archive_name"
+                pushd "$rootpath/tmp/$archive_name" > /dev/null
+
+                if borg extract --progress "$repository_path::$archive_name"; then
+                    echo -e "\033[0;36mSauvegarde de l'archive $archive_name : \033[0;32mOK\033[0m"
+                else
+                    echo -e "\033[0;36mSauvegarde de l'archive $archive_name : \033[0;31mFAIL\033[0m"
+                    archives_is_saves=false
+                fi
+
+                popd > /dev/null
+            done
+
+            if [ "$archives_is_saves" = 'false' ]; then
+                read -rp "Toutes les archives n'ont pas pu êtres sauvegardées, souhaitez vous malgré tout continuer (oui/non) ? " next_step
+
+                if [ "${next_step,,}" != 'oui' ]; then
+                    tmp_cleanup
+                    exit 1
+                fi
+            fi
+        else
+            echo -e "\nAucune archive à sauvegarder."
+        fi
+
+        # Suppression de l'ancien dépôt et création du nouveau.
+        borg delete --force "$repository_path"
+        rm -f "$rootpath/resources/keys/$repository_name.key"
+        rm -f "$rootpath/resources/pass/$repository_name.pass"
+        safeguard_clear "$repository_name"
+
+        if [ "$ssh_repository" = 'false' ]; then
+            mkdir -p "$(dirname "$repository_path")"
+        fi
+
+        borg init -e none "$repository_path"
+
+        # Récupération des archives dans le nouveau dépôt.
+        if [ "${#archives_list}" -gt 0 ]; then
+            echo -e "\n\033[0;36mRécupération des archives en cours...\033[0m"
+            for archive_name in "${archives_list[@]}"; do
+                pushd "$rootpath/tmp/$archive_name" > /dev/null
+
+                if borg create -C "$compression" --progress "$repository_path::$archive_name" .; then
+                    echo -e "\033[0;36mRécupération de l'archive $archive_name : \033[0;32mOK\033[0m"
+                else
+                    echo -e "\033[0;36mRécupération de l'archive $archive_name : \033[0;31mFAIL\033[0m"
+                fi
+
+                popd > /dev/null
+            done
+        fi
+
+        cp "$rootpath/repositories/$repository_name" "$rootpath/tmp/$repository_name" \
+        && sed s/'encryption=true'/'encryption=false'/g "$rootpath/tmp/$repository_name" > "$rootpath/repositories/$repository_name"
+        rm -Rf "$rootpath/tmp"
+
+        echo -e "\n\033[0;36mMise à niveau du dépôt $repository_name terminé.\033[0m\n" \
+                "\nInformations du nouveau dépôt :\n$(borg info "$repository_path")\n" \
+                "\nListe des archives récupérées :\n$(borg list "$repository_path")"
+    fi
+fi

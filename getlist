@@ -1,0 +1,32 @@
+#!/bin/bash
+
+rootpath=/root/SaveMe
+repository_name="$1"
+
+. "$rootpath/includes/config"
+
+if borg info "$repository_path" &> /dev/null; then
+    list=$(borg list "$repository_path" 2> /dev/null)
+
+    if [ -z "$list" ] ; then
+        echo -e "\n\033[0;31mLe dépôt $repository_name ne contient aucune archive.\033[0m"
+        exit 1
+    fi
+
+    if [ -n "$2" ]; then
+        if borg list "$repository_path" | grep "$2" > /dev/null; then
+            borg list "$repository_path::$2"
+        else
+            echo -e "\n\033[0;31mL'archive $2 n'existe pas.\033[0m"
+            read -rp "Voulez-vous consulter les archives disponibles pour le dépôt $repository_name (oui/non) ? " view_list
+
+            if [ "${view_list,,}" = 'oui' ]; then
+                echo -e "\033[0;36m$(borg list "$repository_path")\033[0m"
+            fi
+        fi
+    else
+        echo -e "\033[0;36m$list\033[0m"
+    fi
+else
+    echo -e "\n\033[0;31mLe dépôt $repository_name n'existe pas.\033[0m"
+fi

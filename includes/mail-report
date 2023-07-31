@@ -1,0 +1,63 @@
+mail_header="SaveMe - $(date +%c)"
+
+if [ "$archive_created" = 'true' ]; then
+    repository_infos=$(borg info "$repository_path::$(borg list --last 1 "$repository_path" | awk '{print $1}')")
+    repository_infos=$(sed -e s/' tb'/To/gi -e s/' gb'/Go/gi -e s/' mb'/Mo/gi -e s/' kb'/Ko/gi <<< "$repository_infos")
+
+    original_size=$(awk '/This archive:/ {print $3}' <<< "$repository_infos")
+    compressed_size=$(awk '/This archive:/ {print $4}' <<< "$repository_infos")
+    deduplicated_size=$(awk '/This archive:/ {print $5}' <<< "$repository_infos")
+    total_files_archived=$(awk '/Number of files:/ {print $4}' <<< "$repository_infos")
+
+    original_full_size=$(awk '/All archives:/ {print $3}' <<< "$repository_infos")
+    compressed_full_size=$(awk '/All archives:/ {print $4}' <<< "$repository_infos")
+    deduplicated_full_size=$(awk '/All archives:/ {print $5}' <<< "$repository_infos")
+
+    mail_content="
+        <strong style=\"font-size: 1.3em;\">
+            $total_files_archived fichiers ont été archivés dans le dépôt <em>$repository_name</em>.
+        </strong>
+        <ul style=\"padding-left: 5px; font-size: 1.2em;\">
+            <li>Taille originale : $original_size</li>
+            <li>Taille après compression : $compressed_size</li>
+            <li>Taille après déduplication : $deduplicated_size</li>
+        </ul>
+
+        <div style=\"margin-bottom: 10px; font-weight: bold;\">
+            ----------------------------------------------------------------------------------------------
+        </div>
+
+        <strong style=\"font-size: 1.3em;\">
+            Espace total alloué au dépot <em>$repository_name</em> :\n
+        </strong>
+        <table style=\"font-size: 1.2em; border: 1px solid #000; margin-top: 20px; padding: 10px;\">
+            <tr>
+                <td style=\"text-align: right; padding-right: 10px;\">
+                    Taille originale :
+                </td>
+                <td >$original_full_size</td>
+            </tr>
+            <tr>
+                <td style=\"text-align: right; padding-right: 10px;\">
+                    Taille après compression :
+                </td>
+                <td>$compressed_full_size</td>
+            </tr>
+            <tr>
+                <td style=\"text-align: right; padding-right: 10px;\">
+                    Taille après déduplication :
+                </td>
+                <td>$deduplicated_full_size</td>
+            </tr>
+        </table>
+    "
+else
+    mail_content="
+        <p style=\"font-size: 1.2em;\">
+            Une erreur est survenue lors de la création d'une archive pour le dépôt <em>$repository_name</em>.<br />
+            Consultez les logs pour en savoir plus concernant l'erreur qui s'est produite.
+        </p>
+    "
+fi
+
+echo -e "Subject: $mail_header\nMIME-Version: 1.0\nContent-Type: text/html\n\n$mail_content" | /usr/lib/sendmail "$mailto"

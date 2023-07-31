@@ -1,23 +1,34 @@
 #!/bin/bash
 
-rootpath=$(dirname "$(readlink -f "$0")")
-repository_path="${1// /}"
+rootpath=/root/SaveMe
+repository_name="$1"
 archive_name="$2"
 
-if borg info "$repository_path" &> /dev/null; then
-    # Tentative d'installation de la dépendance gawk, en cas d'échec le script s'arrête.
-    if ! command -v gawk; then
-        apt-get -y install gawk
+. "$rootpath/includes/config"
 
-        if ! command -v gawk; then
-            echo -e "\033[0;31mImpossible d'installer le paquet \033[1mborgbackup\033[0m\033[0;31m, veuillez essayer une installation manuelle.\033[0m"
-            exit 1
-        fi
+# Demande de confirmation.
+echo -e "\n\033[0;31mATTENTION :\033[0m Vous êtes sur le point d'effectuer une restauration de votre système." \
+        "\nCertaines de vos données actuelles risquent d'êtres écrasés par le contenu de votre sauvegarde.\n"
+read -rp "Êtes vous sur de vouloir continuer (oui/non) ? " restore_continue
+
+if [ "${restore_continue,,}" != 'oui' ]; then
+    exit 1
+fi
+
+if [ "$encryption" = 'false' ]; then
+    echo -e "\nLe dépôt $repository_name est défini comme un dépôt non crypté." \
+            "\nSi il s'agit d'un dépôt crypté, modifiez le fichier de configuration correspondant puis relancez le script restore."
+    read -rp "Sinon, validez la restauration en saisissant 'restaurer' : " word_of_confirmation
+
+    if [ "${word_of_confirmation,,}" != 'restaurer' ]; then
+        exit 1
     fi
+fi
 
+if borg info "$repository_path" &> /dev/null; then
     if borg list "$repository_path" &> /dev/null; then
         # Récupération du nom d'une archive valide si ce n'est pas déjà le cas.
-        while ! borg list "$repository_path" | grep "$archive_name"; do
+        while [ -z "$archive_name" ] || ! borg list "$repository_path" | grep "$archive_name"; do
             if [ -z "$archive_name" ]; then
                 echo -e "\nVous n'avez pas indiqué d'archive spécifique à extraire."
             else
@@ -29,10 +40,10 @@ if borg info "$repository_path" &> /dev/null; then
             if [ "${use_last_archive,,}" = 'oui' ]; then
                 archive_name=$(borg list --last 1 "$repository_path" | awk '{print $1}')
             else
-                echo -e "\nArchives disponibles pour le repository \033[1m$repository_path\033[0m :"
+                echo -e "\nArchives disponibles pour le dépôt \033[1m$repository_name\033[0m :"
                 borg list "$repository_path"
 
-                echo -e "\nVeuillez renseigner le nom d'une archive valide pour le repository $repository_path :"
+                echo -e "\nVeuillez renseigner le nom d'une archive valide pour le dépôt $repository_name :"
                 read -r archive_name
             fi
         done
@@ -45,20 +56,39 @@ if borg info "$repository_path" &> /dev/null; then
             echo -e "\033[0;32mLa restauration a été effectuée avec succès.\033[0m\n"
 
             # En cas de succès, réinstallation des paquets.
-            if [ -f "$rootpath/packages/$(basename "$repository_path").list" ]; then
-                dpkg --clear-selections
-                dpkg --set-selections < "$rootpath/packages/$(basename "$repository_path").list"
-                apt-get dselect-upgrade
-                rm /var/lib/dpkg/lock-frontend
+            if [ -f "$rootpath/resources/packages/$(basename "$repository_path").list" ]; then
+                echo -e "\nRéinstallation des paquets en cours..."
 
-                echo -e "\033[0;32mTous les paquets ont été réinstallés.\033[0m"
+                start_time=SECONDS
+                while (( SECONDS - start_time < 10 )); do
+                    if ! fuser /var/lib/dpkg/lock &> /dev/null; then
+                        dpkg --clear-selections
+                        dpkg --set-selections < "$rootpath/resources/packages/$repository_name.list"
+                        apt-get dselect-upgrade
+
+                        echo -e "\033[0;32mTous les paquets ont été réinstallés.\033[0m"
+                        break
+                    fi
+                done
+
+                if (( SECONDS - start_time >= 10 )); then
+                    echo -e "\033[0;31mLe délais d'attente du déverrouillage de dpkg est dépassé.\033[0m" \
+                            "les paquets devront être réinstallés manuellement depuis $rootpath/resources/packages/$repository_name.list"
+                fi
+            fi
+
+            # Vérification que la restauration n'est pas altéré la configuration de l'encryptage.
+            if [ "$encryption" = 'false' ] && [ "$(borg info "$repository_name" 2> /dev/null | grep Encrypted | awk '{print $2}')" = 'Yes' ]; then
+                cp "$rootpath/repositories/$repository_name" "$rootpath/repositories/$repository_name.tmp" \
+                && sed s/'encryption=false'/'encryption=true'/g "$rootpath/repositories/$repository_name.tmp" > "$rootpath/repositories/$repository_name" \
+                && rm "$rootpath/repositories/$repository_name.tmp"
             fi
         else
             echo -e "\033[0;31mUne erreur s'est produite durant la restauration.\033[0m"
         fi
     else
-        echo -e "\033[0;31mLe repository \033[1m$repository_path\033[0m \033[0;31mne contient aucune archive.\033[0m"
+        echo -e "\033[0;31mLe dépôt \033[1m$repository_name\033[0m \033[0;31mne contient aucune archive.\033[0m"
     fi
 else
-    echo -e echo -e "\033[0;31mLe repository \033[1m$repository_path\033[0m \033[0;31mn'existe pas.\033[0m"
+    echo -e echo -e "\033[0;31mLe dépôt \033[1m$repository_name\033[0m \033[0;31mn'existe pas.\033[0m"
 fi

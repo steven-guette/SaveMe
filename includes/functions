@@ -1,0 +1,56 @@
+check_dependencies() {
+    local -a dependencies=(borgbackup gawk grep dpkg mkdir rm cp chmod)
+    local -a missing=()
+
+    for package in "${dependencies[@]}"; do
+        if ! command -v "$package" &> /dev/null; then
+            missing+=("$package")
+        fi
+    done
+
+    if [ "${#missing[@]}" -gt 0 ]; then
+        apt-get -y -qq install "${missing[@]}"
+    fi
+}
+
+create_new_passphrase() {
+    local pass
+
+    if [ -n "$repository_name" ]; then
+        pass=$(openssl rand -base64 32)
+        echo "$pass" > "/root/.SaveMe-SafeGuard/pass/$repository_name.pass"
+        echo "$pass" > "/root/SaveMe/resources/pass/$repository_name.pass"
+        chmod 400 "/root/.SaveMe-SafeGuard/pass/$repository_name.pass" \
+                  "/root/SaveMe/resources/pass/$repository_name.pass"
+    fi
+}
+
+safeguard_copy_check() {
+    mapfile -t copy_list < <(ls "$1")
+    local from="$1"
+    local to="$2"
+
+    for copy in "${copy_list[@]}"; do
+        if [ ! -f "$to/$copy" ]; then
+            cp "$from/$copy" "$to/$copy"
+        fi
+    done
+}
+
+safeguard_save_key() {
+    local key_name="$1"
+
+    if [ -f "/root/SaveMe/resources/keys/$key_name" ]; then
+        cp "/root/SaveMe/resources/keys/$key_name" "/root/.SaveMe-SafeGuard/keys"
+        chmod 400 "/root/.SaveMe-SafeGuard/keys/$key_name"
+    fi
+}
+
+safeguard_clear() {
+    local repository_name="$1"
+
+    if [ -O "/root/.SaveMe-SafeGuard" ]; then
+        rm -f "/root/.SaveMe-SafeGuard/pass/$repository_name.pass"
+        rm -f "/root/.SaveMe-SafeGuard/keys/$repository_name.key"
+    fi
+}
