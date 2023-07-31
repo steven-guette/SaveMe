@@ -56,14 +56,14 @@ if borg info "$repository_path" &> /dev/null; then
             echo -e "\033[0;32mLa restauration a été effectuée avec succès.\033[0m\n"
 
             # En cas de succès, réinstallation des paquets.
-            if [ -f "$rootpath/resources/packages/$(basename "$repository_path").list" ]; then
+            if [ -f "$packages_path" ]; then
                 echo -e "\nRéinstallation des paquets en cours..."
 
                 start_time=SECONDS
                 while (( SECONDS - start_time < 10 )); do
                     if ! fuser /var/lib/dpkg/lock &> /dev/null; then
                         dpkg --clear-selections
-                        dpkg --set-selections < "$rootpath/resources/packages/$repository_name.list"
+                        dpkg --set-selections < "$packages_path"
                         apt-get dselect-upgrade
 
                         echo -e "\033[0;32mTous les paquets ont été réinstallés.\033[0m"

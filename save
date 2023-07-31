@@ -54,8 +54,6 @@ fi
 if [ -n "$repository_path" ] && [ -n "$archive_name" ] && [ -n "$encryption" ] && [ -n "$compression" ] \
 && [ "${#to_save}" -gt 0 ] && [ -n "$keep_type" ] && [ -n "$keep_value" ] && [ "$keep_value" -eq "$keep_value" ]; then
     # Gestion du fichier qui va contenir la liste des paquets à réinstaller.
-    packages_path="$rootpath/resources/packages/$repository_name.list"
-
     if [ ! -f "$packages_path" ]; then
         touch "$packages_path"
         chmod 600 "$packages_path"

@@ -1,21 +1,33 @@
 . /root/SaveMe/includes/functions
 
 # Initialisation des variables contenant les chemins vers les clés de sécurité et les passphrase.
-key_path="$rootpath/resources/keys"
 key_copy_path="/root/.SaveMe-SafeGuard/keys"
-pass_path="$rootpath/resources/pass"
 pass_copy_path="/root/.SaveMe-SafeGuard/pass"
+key_path="$rootpath/resources/keys"
+pass_path="$rootpath/resources/pass"
+packages_path="$rootpath/resources/packages"
 
 # Création du répertoire SafeGuard et de ses sous-répertoires si ils n'existent pas.
 if [ ! -d "$key_copy_path" ]; then
     mkdir -p "$key_copy_path"
-
-    if [ ! -d "$pass_copy_path" ]; then
-        mkdir "$pass_copy_path"
-    fi
-
-    chmod 700 /root/.SaveMe-SafeGuard "$key_copy_path" "$pass_copy_path"
 fi
+if [ ! -d "$pass_copy_path" ]; then
+    mkdir "$pass_copy_path"
+fi
+
+# Création du répertoire ressources et de ses sous-répertoires si ils n'existent pas.
+if [ ! -d "$key_path" ]; then
+    mkdir -p "$key_path"
+fi
+if [ ! -d "$pass_path" ]; then
+    mkdir "$pass_path"
+fi
+if [ ! -d "$packages_path" ]; then
+    mkdir "$packages_path"
+fi
+
+# Limitation des droits des répertoires.
+chmod -R 700 /root/.SaveMe-SafeGuard "$rootpath/resources"
 
 # Vérification des dépendances et réplication des données sensibles.
 check_dependencies
@@ -34,6 +46,7 @@ if [ -f "$repository_file_path" ] && [ -O "$repository_file_path" ]; then
 
     key_path+="/$repository_name.key"
     pass_path+="/$repository_name.pass"
+    packages_path+="/$repository_name.list"
 
     if [ -f "$key_path" ] && [ -f "$pass_path" ]; then
         BORG_PASSPHRASE=$(cat "$pass_path")
