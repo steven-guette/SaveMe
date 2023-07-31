@@ -6,7 +6,6 @@ ou via un protocole SSH.***
 ***Il s'agit d'un programme destiné aux systèmes GNU/Linux.***
 
 ***En outre, si vous êtes sur une distribution qui n'est pas basée sur Debian, vous devrez probablement installer les dépendances manuellement.***
-***
 
 ## <font color="orange">Configuration d'un nouveau backup</font>
 Pour configurer un nouveau backup, il vous suffit d'ajouter un fichier dans `SaveMe/repositories/` 
@@ -20,13 +19,11 @@ Son contenu est bien commenté, cela ne devrait pas vous prendre plus de quelque
 ### <font color="red">Important</font>
 **Pour des raisons de sécurité et de compatibilité, il est impératif que le répertoire SaveMe
 soit situé dans /root et que les scripts qu'il contient soient utilisés en tant que root.**
-***
 
 ## <font color="orange">Les outils disponibles</font>
 *Vous trouverez ci-dessous la liste de tous les scripts de type utilitaire que vous pourrez utiliser afin de gérer vos différents backups. 
 Pour détailler leur utilisation, je me servirais du fichier example.
 Chaque script prend en paramètre le nom du fichier de configuration que vous ciblez.*
-***
 
 ### <font color="darkorange">save</font>
 ```Bash
@@ -91,7 +88,6 @@ Le script *getrepos* permet d'afficher la liste de tous vos fichiers de configur
 ./remove example [nom_archive]
 ```
 Le script *remove* permet de supprimer une archive ou un backup complet, soyez conscient qu'aucune restauration ne sera disponible.
-***
 
 ## <font color="orange">Les petits plus</font>
 *Pour terminer la présentation de **SaveMe**, voici quelques informations complémentaires.*
@@ -129,4 +125,3 @@ Le cas échéant, voici la liste des paquets nécessaires au bon fonctionnement 
 ```Bash
 borgbackup gawk grep dpkg
 ```
-***
