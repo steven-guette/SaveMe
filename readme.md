@@ -1,6 +1,5 @@
 # <font color="orange">Save</font>Me
 
-***
 ***Ce petit programme clé en main permet d'effectuer des sauvegardes de vos fichiers sensibles que ce soit en local 
 ou via un protocole SSH.***
 
@@ -10,7 +9,6 @@ ou via un protocole SSH.***
 ***
 
 ## <font color="orange">Configuration d'un nouveau backup</font>
-***
 Pour configurer un nouveau backup, il vous suffit d'ajouter un fichier dans `SaveMe/repositories/` 
 qui contiendra toute la configuration du backup en question.
 
@@ -20,12 +18,11 @@ puis vous n'aurez plus qu'à modifier son contenu selon vos besoins.
 Son contenu est bien commenté, cela ne devrait pas vous prendre plus de quelques minutes pour configurer un nouveau backup.
 
 ### <font color="red">Important</font>
-Pour des raisons de sécurité et de compatibilité, il est impératif que le répertoire SaveMe
-soit situé dans /root et que les scripts qu'il contient soient utilisés en tant que root.
+**Pour des raisons de sécurité et de compatibilité, il est impératif que le répertoire SaveMe
+soit situé dans /root et que les scripts qu'il contient soient utilisés en tant que root.**
 ***
 
 ## <font color="orange">Les outils disponibles</font>
-***
 *Vous trouverez ci-dessous la liste de tous les scripts de type utilitaire que vous pourrez utiliser afin de gérer vos différents backups. 
 Pour détailler leur utilisation, je me servirais du fichier example.
 Chaque script prend en paramètre le nom du fichier de configuration que vous ciblez.*
@@ -97,7 +94,6 @@ Le script *remove* permet de supprimer une archive ou un backup complet, soyez c
 ***
 
 ## <font color="orange">Les petits plus</font>
-***
 *Pour terminer la présentation de **SaveMe**, voici quelques informations complémentaires.*
 ***
 
