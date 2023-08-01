@@ -14,9 +14,8 @@ if [ "$archive_created" = 'true' ]; then
     deduplicated_full_size=$(awk '/All archives:/ {print $5}' <<< "$repository_infos")
 
     mail_content="
-        <strong style=\"font-size: 1.3em;\">
-            $total_files_archived fichiers ont été archivés dans le dépôt <em>$repository_name</em>.
-        </strong>
+        <h2>Une nouvelle sauvegarde a été effectuée depuis $HOSTNAME</h2>
+
         <ul style=\"padding-left: 5px; font-size: 1.2em;\">
             <li>Taille originale : $original_size</li>
             <li>Taille après compression : $compressed_size</li>
@@ -30,7 +29,14 @@ if [ "$archive_created" = 'true' ]; then
         <strong style=\"font-size: 1.3em;\">
             Espace total alloué au dépot <em>$repository_name</em> :\n
         </strong>
+
         <table style=\"font-size: 1.2em; border: 1px solid #000; margin-top: 20px; padding: 10px;\">
+            <tr>
+                <td style=\"text-align: right; padding-right: 10px;\">
+                    Nombre de fichiers :
+                </td>
+                <td >$total_files_archived</td>
+            </tr>
             <tr>
                 <td style=\"text-align: right; padding-right: 10px;\">
                     Taille originale :

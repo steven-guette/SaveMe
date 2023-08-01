@@ -1,5 +1,3 @@
-#!/bin/bash
-
 #========================================================================================================
 # ATTENTION : Pour des raisons de sécurité et de compatibilité, il est impératif que le répertoire SaveMe
 # soit situé dans /root et que les scripts qu'il contient soient utilisés en tant que root.

@@ -1,6 +1,6 @@
 check_dependencies() {
-    local -a dependencies=(borgbackup gawk grep dpkg mkdir rm cp chmod)
-    local -a missing=()
+    local dependencies=(borgbackup gawk grep dpkg mkdir rm cp chmod)
+    local missing=()
 
     for package in "${dependencies[@]}"; do
         if ! command -v "$package" &> /dev/null; then
@@ -9,7 +9,12 @@ check_dependencies() {
     done
 
     if [ "${#missing[@]}" -gt 0 ]; then
-        apt-get -y -qq install "${missing[@]}"
+        if command -v apt-get &> /dev/null; then
+            apt-get -y -qq install "${missing[@]}"
+        else
+            echo -e "Vous utilisez une distribution qui n'est pas basé sur Debian, vous devez installer les dépendances manuellement." \
+                    "\nVoici la liste des paquets manquants : ${missing[*]}" > /root/SaveMe/logs/system.log
+        fi
     fi
 }
 
