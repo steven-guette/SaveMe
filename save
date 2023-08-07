@@ -127,7 +127,7 @@ if [ -n "$repository_path" ] && [ -n "$archive_name" ] && [ -n "$encryption" ] &
     # Purge du fichier de log si celui-ci devient trop volumineux.
     logs_file="$rootpath/logs/backup-$repository_name.log"
 
-    if [ -f "$logs_file" ] && [ "$(grep -c '^' "$logs_file")" -ge 200 ]; then
+    if [ -f "$logs_file" ] && [ "$(awk 'END {printf "%s", NR}' "$logs_file")" -ge 200 ]; then
         echo > "$logs_file"
     fi
 
