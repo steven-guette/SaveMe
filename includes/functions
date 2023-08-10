@@ -31,15 +31,13 @@ create_new_passphrase() {
 }
 
 safeguard_copy_check() {
-    mapfile -t copy_list < <(ls "$1")
     local from="$1"
     local to="$2"
 
-    for copy in "${copy_list[@]}"; do
-        if [ ! -f "$to/$copy" ]; then
-            cp "$from/$copy" "$to/$copy"
-        fi
-    done
+    if [ -d "$from" ] && [ -d "$to" ]; then
+        find "$from" -maxdepth 1 -type f -exec cp -u '{}' "$to" \;
+        find "$to" -maxdepth 1 -type f -exec cp -u '{}' "$from" \;
+    fi
 }
 
 safeguard_save_key() {

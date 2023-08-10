@@ -1,4 +1,4 @@
-mail_header="SaveMe - $(date +%c)"
+mail_header="SaveMe - $(date +%c) :: $(hostname)"
 
 if [ "$archive_created" = 'true' ]; then
     repository_infos=$(borg info "$repository_path::$(borg list --last 1 "$repository_path" | awk '{print $1}')")
@@ -14,7 +14,9 @@ if [ "$archive_created" = 'true' ]; then
     deduplicated_full_size=$(awk '/All archives:/ {print $5}' <<< "$repository_infos")
 
     mail_content="
-        <h2>Une nouvelle sauvegarde a été effectuée depuis $HOSTNAME</h2>
+        <strong style=\"font-size: 1.3em;\">
+            Création d'une nouvelle archive :\n
+        </strong>
 
         <ul style=\"padding-left: 5px; font-size: 1.2em;\">
             <li>Taille originale : $original_size</li>

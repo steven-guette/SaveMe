@@ -3,9 +3,11 @@
 # Initialisation des variables contenant les chemins vers les clés de sécurité et les passphrase.
 key_copy_path="/root/.SaveMe-SafeGuard/keys"
 pass_copy_path="/root/.SaveMe-SafeGuard/pass"
+repos_copy_path="/root/.SaveMe-SafeGuard/repos"
 key_path="$rootpath/resources/keys"
 pass_path="$rootpath/resources/pass"
 packages_path="$rootpath/resources/packages"
+repositories_path="$rootpath/repositories"
 
 # Création du répertoire SafeGuard et de ses sous-répertoires si ils n'existent pas.
 if [ ! -d "$key_copy_path" ]; then
@@ -13,6 +15,9 @@ if [ ! -d "$key_copy_path" ]; then
 fi
 if [ ! -d "$pass_copy_path" ]; then
     mkdir "$pass_copy_path"
+fi
+if [ ! -d "$repos_copy_path" ]; then
+    mkdir "$repos_copy_path"
 fi
 
 # Création du répertoire ressources et de ses sous-répertoires si ils n'existent pas.
@@ -33,6 +38,7 @@ chmod -R 700 /root/.SaveMe-SafeGuard "$rootpath/resources"
 check_dependencies
 safeguard_copy_check "$key_copy_path" "$key_path"
 safeguard_copy_check "$pass_copy_path" "$pass_path"
+safeguard_copy_check "$repos_copy_path" "$repositories_path"
 
 #====================================================================================
 # Teste l'existence du fichier dans /repositories d'après la saisie de l'utilisateur.

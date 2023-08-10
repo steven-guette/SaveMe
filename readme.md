@@ -118,6 +118,28 @@ echo -e "Subject: $mail_header\nMIME-Version: 1.0\nContent-Type: text/html\n\n$m
 ```
 ***
 
+### <font color="darkorange">SafeGuard</font>
+Pour éviter une suppression par erreur d'un fichier sensible, ceux-ci sont stockés dans un répertoire secondaire : `/root/.SaveMe-SafeGuard`.
+
+En cas de suppression involontaire, les répertoires contenant vos fichiers sensibles seront automatiquement mis à jour 
+depuis ce répertoire secondaire lorsque vous exécuterez l'un des scripts de SaveMe.
+
+Il est en outre conseillé de créer une sauvegarde sur un périphérique externe de ce répertoire après chaque création
+d'un backup (Après la première sauvegarde afin que le répertoire soit mis à jour).
+
+De cette manière si vous avez un crash important ou votre disque sur lequel SaveMe est installé qui plante avec impossibilité de
+récupérer les données, il vous suffira de réinstaller SaveMe et de créer une copie du répertoire secondaire afin de ne perdre aucune donnée.
+```Bash
+    su -
+    git clone https://https://github.com/steven-guette/SaveMe.git
+    cp -rv /périphérique/externe/.SaveMe-SafeGuard .
+```
+Sans ce répertoire, vous ne serez plus en mesure de récupérer les données contenues dans vos backups cryptés.
+Quant aux backups non cryptés, vous devrez recréer vos fichiers de configuration manuellement.
+
+**Veillez cependant à conserver ce périphérique à l'abri et loin des regards indiscrets, car n'oubliez pas que celui-ci contient 
+des informations pouvant permettre de récupérer les données de vos backups.**
+
 ### <font color="darkorange">Dépendances nécessaires</font>
 Si vous êtes sur la distribution Debian ou sur une autre distribution basée dessus, l'installation des paquets se fera automatiquement.
 
